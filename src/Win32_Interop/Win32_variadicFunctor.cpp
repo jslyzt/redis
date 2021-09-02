@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c), Microsoft Open Technologies, Inc.
 * All rights reserved.
 * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,7 @@
 
 #include <windows.h>
 #include <stdexcept>
+#include <system_error>
 #include <map>
 using namespace std;
 
@@ -57,7 +58,7 @@ LPVOID DLLMap::getProcAddress(string dll, string functionName)
 
 DLLMap::~DLLMap()
 {
-	for each(auto modPair in (*this))
+	for each (auto modPair in (*this))
 	{
 		FreeLibrary(modPair.second);
 	}
