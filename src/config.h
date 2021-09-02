@@ -45,7 +45,7 @@
 #define redis_stat stat64
 #else
 #ifdef _WIN32
-#define redis_fstat fdapi_fstat64
+#define redis_fstat FDAPI_fstat64
 #define redis_stat __stat64
 #else
 #define redis_fstat fstat
@@ -91,7 +91,7 @@
 #ifdef __linux__
 #define aof_fsync fdatasync
 #else
-#define aof_fsync fsync
+#define aof_fsync FDAPI_fsync
 #endif
 
 /* Define rdb_fsync_range to sync_file_range() on Linux, otherwise we use
@@ -111,7 +111,7 @@
 #ifdef HAVE_SYNC_FILE_RANGE
 #define rdb_fsync_range(fd,off,size) sync_file_range(fd,off,size,SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE)
 #else
-#define rdb_fsync_range(fd,off,size) fsync(fd)
+#define rdb_fsync_range(fd,off,size) FDAPI_fsync(fd)
 #endif
 
 /* Check if we can use setproctitle().

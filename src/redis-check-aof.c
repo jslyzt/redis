@@ -57,180 +57,187 @@ POSIX_ONLY(#include <unistd.h>)
 static char error[1024];
 static off_t epos;
 
-int consumeNewline(char *buf) {
-    if (strncmp(buf,"\r\n",2) != 0) {
-        ERROR("Expected \\r\\n, got: %02x%02x",buf[0],buf[1]);
-        return 0;
-    }
-    return 1;
+int consumeNewline(char* buf) {
+	if (strncmp(buf, "\r\n", 2) != 0) {
+		ERROR("Expected \\r\\n, got: %02x%02x", buf[0], buf[1]);
+		return 0;
+	}
+	return 1;
 }
 
-int readLong(FILE *fp, char prefix, PORT_LONG *target) {
-    char buf[128], *eptr;
-    epos = ftello(fp);
-    if (fgets(buf,sizeof(buf),fp) == NULL) {
-        return 0;
-    }
-    if (buf[0] != prefix) {
-        ERROR("Expected prefix '%c', got: '%c'",buf[0],prefix);
-        return 0;
-    }
-    *target = strtol(buf+1,&eptr,10);
-    return consumeNewline(eptr);
+int readLong(FILE* fp, char prefix, PORT_LONG* target) {
+	char buf[128], * eptr;
+	epos = ftello(fp);
+	if (fgets(buf, sizeof(buf), fp) == NULL) {
+		return 0;
+	}
+	if (buf[0] != prefix) {
+		ERROR("Expected prefix '%c', got: '%c'", buf[0], prefix);
+		return 0;
+	}
+	*target = strtol(buf + 1, &eptr, 10);
+	return consumeNewline(eptr);
 }
 
-int readBytes(FILE *fp, char *target, PORT_LONG length) {
-    PORT_LONG real;
-    epos = ftello(fp);
-    real = (PORT_LONG) fread(target, 1, length, fp);
-    if (real != length) {
-        ERROR("Expected to read %ld bytes, got %ld bytes", length, real); /* TODO: verify %ld */
-        return 0;
-    }
-    return 1;
+int readBytes(FILE* fp, char* target, PORT_LONG length) {
+	PORT_LONG real;
+	epos = ftello(fp);
+	real = (PORT_LONG)fread(target, 1, length, fp);
+	if (real != length) {
+		ERROR("Expected to read %ld bytes, got %ld bytes", length, real); /* TODO: verify %ld */
+		return 0;
+	}
+	return 1;
 }
 
-int readString(FILE *fp, char** target) {
-    PORT_LONG len;
-    *target = NULL;
-    if (!readLong(fp,'$',&len)) {
-        return 0;
-    }
+int readString(FILE* fp, char** target) {
+	PORT_LONG len;
+	*target = NULL;
+	if (!readLong(fp, '$', &len)) {
+		return 0;
+	}
 
-    /* Increase length to also consume \r\n */
-    len += 2;
-    *target = (char*)malloc(len);
-    if (!readBytes(fp,*target,len)) {
-        return 0;
-    }
-    if (!consumeNewline(*target+len-2)) {
-        return 0;
-    }
-    (*target)[len-2] = '\0';
-    return 1;
+	/* Increase length to also consume \r\n */
+	len += 2;
+	*target = (char*)malloc(len);
+	if (!readBytes(fp, *target, len)) {
+		return 0;
+	}
+	if (!consumeNewline(*target + len - 2)) {
+		return 0;
+	}
+	(*target)[len - 2] = '\0';
+	return 1;
 }
 
-int readArgc(FILE *fp, PORT_LONG *target) {
-    return readLong(fp,'*',target);
+int readArgc(FILE* fp, PORT_LONG* target) {
+	return readLong(fp, '*', target);
 }
 
-off_t process(FILE *fp) {
-    PORT_LONG argc;
-    off_t pos = 0;
-    int i, multi = 0;
-    char *str;
+off_t process(FILE* fp) {
+	PORT_LONG argc;
+	off_t pos = 0;
+	int i, multi = 0;
+	char* str;
 
-    while(1) {
-        if (!multi) pos = (off_t)ftello(fp);
-        if (!readArgc(fp, &argc)) break;
+	while (1) {
+		if (!multi) pos = (off_t)ftello(fp);
+		if (!readArgc(fp, &argc)) break;
 
-        for (i = 0; i < argc; i++) {
-            if (!readString(fp,&str)) break;
-            if (i == 0) {
-                if (strcasecmp(str, "multi") == 0) {
-                    if (multi++) {
-                        ERROR("Unexpected MULTI");
-                        break;
-                    }
-                } else if (strcasecmp(str, "exec") == 0) {
-                    if (--multi) {
-                        ERROR("Unexpected EXEC");
-                        break;
-                    }
-                }
-            }
-            free(str);
-        }
+		for (i = 0; i < argc; i++) {
+			if (!readString(fp, &str)) break;
+			if (i == 0) {
+				if (strcasecmp(str, "multi") == 0) {
+					if (multi++) {
+						ERROR("Unexpected MULTI");
+						break;
+					}
+				}
+				else if (strcasecmp(str, "exec") == 0) {
+					if (--multi) {
+						ERROR("Unexpected EXEC");
+						break;
+					}
+				}
+			}
+			free(str);
+		}
 
-        /* Stop if the loop did not finish */
-        if (i < argc) {
-            if (str) free(str);
-            break;
-        }
-    }
+		/* Stop if the loop did not finish */
+		if (i < argc) {
+			if (str) free(str);
+			break;
+		}
+	}
 
-    if (feof(fp) && multi && strlen(error) == 0) {
-        ERROR("Reached EOF before reading EXEC for MULTI");
-    }
-    if (strlen(error) > 0) {
-        printf("%s\n", error);
-    }
-    return pos;
+	if (feof(fp) && multi && strlen(error) == 0) {
+		ERROR("Reached EOF before reading EXEC for MULTI");
+	}
+	if (strlen(error) > 0) {
+		printf("%s\n", error);
+	}
+	return pos;
 }
 
-int main(int argc, char **argv) {
-    char *filename;
-    int fix = 0;
+int main(int argc, char** argv) {
+	char* filename;
+	int fix = 0;
 #ifdef _WIN32
-    _fmode = _O_BINARY;
-    setmode(_fileno(stdin), _O_BINARY);
-    setmode(_fileno(stdout), _O_BINARY);
-    setmode(_fileno(stderr), _O_BINARY);
+	_fmode = _O_BINARY;
+	setmode(_fileno(stdin), _O_BINARY);
+	setmode(_fileno(stdout), _O_BINARY);
+	setmode(_fileno(stderr), _O_BINARY);
 #endif
 
-    if (argc < 2) {
-        printf("Usage: %s [--fix] <file.aof>\n", argv[0]);
-        exit(1);
-    } else if (argc == 2) {
-        filename = argv[1];
-    } else if (argc == 3) {
-        if (strcmp(argv[1],"--fix") != 0) {
-            printf("Invalid argument: %s\n", argv[1]);
-            exit(1);
-        }
-        filename = argv[2];
-        fix = 1;
-    } else {
-        printf("Invalid arguments\n");
-        exit(1);
-    }
+	if (argc < 2) {
+		printf("Usage: %s [--fix] <file.aof>\n", argv[0]);
+		exit(1);
+	}
+	else if (argc == 2) {
+		filename = argv[1];
+	}
+	else if (argc == 3) {
+		if (strcmp(argv[1], "--fix") != 0) {
+			printf("Invalid argument: %s\n", argv[1]);
+			exit(1);
+		}
+		filename = argv[2];
+		fix = 1;
+	}
+	else {
+		printf("Invalid arguments\n");
+		exit(1);
+	}
 
-    FILE *fp = fopen(filename,IF_WIN32("r+b","r+"));
-    if (fp == NULL) {
-        printf("Cannot open file: %s\n", filename);
-        exit(1);
-    }
+	FILE* fp = fopen(filename, IF_WIN32("r+b", "r+"));
+	if (fp == NULL) {
+		printf("Cannot open file: %s\n", filename);
+		exit(1);
+	}
 
-    struct redis_stat sb;
-    if (redis_fstat(fileno(fp),&sb) == -1) {
-        printf("Cannot stat file: %s\n", filename);
-        exit(1);
-    }
+	struct redis_stat sb;
+	if (redis_fstat(FDAPI_fileno(fp), &sb) == -1) {
+		printf("Cannot stat file: %s\n", filename);
+		exit(1);
+	}
 
-    off_t size = sb.st_size;
-    if (size == 0) {
-        printf("Empty file: %s\n", filename);
-        exit(1);
-    }
+	off_t size = sb.st_size;
+	if (size == 0) {
+		printf("Empty file: %s\n", filename);
+		exit(1);
+	}
 
-    off_t pos = process(fp);
-    off_t diff = size-pos;
-    printf("AOF analyzed: size=%lld, ok_up_to=%lld, diff=%lld\n",
-        (PORT_LONGLONG) size, (PORT_LONGLONG) pos, (PORT_LONGLONG) diff);
-    if (diff > 0) {
-        if (fix) {
-            char buf[2];
-            printf("This will shrink the AOF from %lld bytes, with %lld bytes, to %lld bytes\n",(PORT_LONGLONG)size,(PORT_LONGLONG)diff,(PORT_LONGLONG)pos);
-            printf("Continue? [y/N]: ");
-            if (fgets(buf,sizeof(buf),stdin) == NULL ||
-                strncasecmp(buf,"y",1) != 0) {
-                    printf("Aborting...\n");
-                    exit(1);
-            }
-            if (ftruncate(fileno(fp), pos) == -1) {
-                printf("Failed to truncate AOF\n");
-                exit(1);
-            } else {
-                printf("Successfully truncated AOF\n");
-            }
-        } else {
-            printf("AOF is not valid\n");
-            exit(1);
-        }
-    } else {
-        printf("AOF is valid\n");
-    }
+	off_t pos = process(fp);
+	off_t diff = size - pos;
+	printf("AOF analyzed: size=%lld, ok_up_to=%lld, diff=%lld\n",
+		(PORT_LONGLONG)size, (PORT_LONGLONG)pos, (PORT_LONGLONG)diff);
+	if (diff > 0) {
+		if (fix) {
+			char buf[2];
+			printf("This will shrink the AOF from %lld bytes, with %lld bytes, to %lld bytes\n", (PORT_LONGLONG)size, (PORT_LONGLONG)diff, (PORT_LONGLONG)pos);
+			printf("Continue? [y/N]: ");
+			if (fgets(buf, sizeof(buf), stdin) == NULL ||
+				strncasecmp(buf, "y", 1) != 0) {
+				printf("Aborting...\n");
+				exit(1);
+			}
+			if (FDAPI_ftruncate(FDAPI_fileno(fp), pos) == -1) {
+				printf("Failed to truncate AOF\n");
+				exit(1);
+			}
+			else {
+				printf("Successfully truncated AOF\n");
+			}
+		}
+		else {
+			printf("AOF is not valid\n");
+			exit(1);
+		}
+	}
+	else {
+		printf("AOF is valid\n");
+	}
 
-    fclose(fp);
-    return 0;
+	fclose(fp);
+	return 0;
 }

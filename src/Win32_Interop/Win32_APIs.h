@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c), Microsoft Open Technologies, Inc.
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 #include <Windows.h>
 #include <stdio.h>      // for rename
 
-// API replacement for non-fd stdio functions
+ // API replacement for non-fd stdio functions
 #define fseeko      _fseeki64
 #define ftello      _ftelli64
 #define snprintf    _snprintf
@@ -48,7 +48,7 @@
 #define usleep(x) (x == 1) ? Sleep(0) : Sleep((int)((x)/1000))
 
 
-/* following defined to choose little endian byte order */
+ /* following defined to choose little endian byte order */
 #define __i386__ 1
 #if !defined(va_copy)
 #define va_copy(d,s)  d = (s)
@@ -56,7 +56,7 @@
 
 #ifndef __RTL_GENRANDOM
 #define __RTL_GENRANDOM 1
-typedef BOOLEAN(_stdcall* RtlGenRandomFunc)(void * RandomBuffer, ULONG RandomBufferLength);
+typedef BOOLEAN(_stdcall* RtlGenRandomFunc)(void* RandomBuffer, ULONG RandomBufferLength);
 #endif
 RtlGenRandomFunc RtlGenRandom;
 
@@ -66,10 +66,10 @@ RtlGenRandomFunc RtlGenRandom;
 int replace_random();
 
 #define rename(a,b) replace_rename(a,b)
-int replace_rename(const char *src, const char *dest);
+int replace_rename(const char* src, const char* dest);
 
-int truncate(const char *path, PORT_LONGLONG length);
+int truncate(const char* path, PORT_LONGLONG length);
 
-#define lseek lseek64
+#define lseek FDAPI_lseek64
 
 #endif

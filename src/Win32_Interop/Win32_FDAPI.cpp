@@ -40,40 +40,6 @@ using namespace std;
 
 #define CATCH_AND_REPORT()  catch(const std::exception &){::redisLog(REDIS_WARNING, "FDAPI: std exception");}catch(...){::redisLog(REDIS_WARNING, "FDAPI: other exception");}
 
-extern "C" {
-	// Unix compatible FD based routines
-	fdapi_accept accept = NULL;
-	fdapi_access access = NULL;
-	fdapi_bind bind = NULL;
-	fdapi_connect connect = NULL;
-	fdapi_fcntl fcntl = NULL;
-	fdapi_fstat fdapi_fstat64 = NULL;
-	fdapi_fsync fsync = NULL;
-	fdapi_ftruncate ftruncate = NULL;
-	fdapi_freeaddrinfo freeaddrinfo = NULL;
-	fdapi_getaddrinfo getaddrinfo = NULL;
-	fdapi_getpeername getpeername = NULL;
-	fdapi_getsockname getsockname = NULL;
-	fdapi_getsockopt getsockopt = NULL;
-	fdapi_htonl htonl = NULL;
-	fdapi_htons htons = NULL;
-	fdapi_isatty isatty = NULL;
-	fdapi_inet_ntop inet_ntop = NULL;
-	fdapi_inet_pton inet_pton = NULL;
-	fdapi_listen listen = NULL;
-	fdapi_lseek64 lseek64 = NULL;
-	fdapi_ntohl ntohl = NULL;
-	fdapi_ntohs ntohs = NULL;
-	fdapi_open open = NULL;
-	fdapi_pipe pipe = NULL;
-	fdapi_poll poll = NULL;
-	fdapi_read read = NULL;
-	fdapi_select select = NULL;
-	fdapi_setsockopt setsockopt = NULL;
-	fdapi_socket socket = NULL;
-	fdapi_write write = NULL;
-}
-
 auto f_WSACleanup = dllfunctor_stdcall<int>("ws2_32.dll", "WSACleanup");
 auto f_WSAFDIsSet = dllfunctor_stdcall<int, SOCKET, fd_set*>("ws2_32.dll", "__WSAFDIsSet");
 auto f_WSAGetLastError = dllfunctor_stdcall<int>("ws2_32.dll", "WSAGetLastError");
@@ -701,13 +667,13 @@ int FDAPI_poll(struct pollfd* fds, nfds_t nfds, int timeout) {
 			}
 
 			if (timeout < 0) {
-				ret = select(0, &readSet, &writeSet, &excepSet, NULL);
+				ret = FDAPI_select(0, &readSet, &writeSet, &excepSet, NULL);
 			}
 			else {
 				struct timeval tv;
 				tv.tv_sec = timeout / 1000;
 				tv.tv_usec = 1000 * (timeout % 1000);
-				ret = select(0, &readSet, &writeSet, &excepSet, &tv);
+				ret = FDAPI_select(0, &readSet, &writeSet, &excepSet, &tv);
 			}
 
 			if (ret < 0) {
@@ -1178,14 +1144,14 @@ BOOL ParseStorageAddress(const char* ip, int port, SOCKADDR_STORAGE* pStorageAdd
 	// Setting AI_PASSIVE will give you a wildcard address if addr is NULL
 	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 
-	if ((status = getaddrinfo(ip, port_buffer, &hints, &res)) != 0) {
+	if ((status = FDAPI_getaddrinfo(ip, port_buffer, &hints, &res)) != 0) {
 		return FALSE;
 	}
 
 	// Note, we're taking the first valid address, there may be more than one
 	memcpy(pStorageAddr, res->ai_addr, res->ai_addrlen);
 
-	freeaddrinfo(res);
+	FDAPI_freeaddrinfo(res);
 	return TRUE;
 }
 
@@ -1220,36 +1186,6 @@ private:
 	Win32_FDSockMap() {
 		InitWinsock();
 
-		accept = FDAPI_accept;
-		access = FDAPI_access;
-		bind = FDAPI_bind;
-		connect = FDAPI_connect;
-		fcntl = FDAPI_fcntl;
-		fdapi_fstat64 = (fdapi_fstat)FDAPI_fstat64;
-		freeaddrinfo = FDAPI_freeaddrinfo;
-		fsync = FDAPI_fsync;
-		ftruncate = FDAPI_ftruncate;
-		getaddrinfo = FDAPI_getaddrinfo;
-		getsockopt = FDAPI_getsockopt;
-		getpeername = FDAPI_getpeername;
-		getsockname = FDAPI_getsockname;
-		htonl = FDAPI_htonl;
-		htons = FDAPI_htons;
-		inet_ntop = FDAPI_inet_ntop;
-		inet_pton = FDAPI_inet_pton;
-		isatty = FDAPI_isatty;
-		listen = FDAPI_listen;
-		lseek64 = FDAPI_lseek64;
-		ntohl = FDAPI_ntohl;
-		ntohs = FDAPI_ntohs;
-		open = FDAPI_open;
-		pipe = FDAPI_pipe;
-		poll = FDAPI_poll;
-		read = FDAPI_read;
-		select = FDAPI_select;
-		setsockopt = FDAPI_setsockopt;
-		socket = FDAPI_socket;
-		write = FDAPI_write;
 	}
 
 	~Win32_FDSockMap() {
